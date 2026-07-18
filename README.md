@@ -69,3 +69,22 @@ python gui.py
 5. Нажмите **«Запустить калибровку»**.
 
 Программа подберёт физические константы и сохранит их в `calibration_config.json`.
+
+## Скриншоты
+
+**Результат прилётов снарядов**
+
+<img width="480" height="252" alt="Результат прилётов снарядов" src="https://github.com/user-attachments/assets/2dccc225-8fc3-4981-aeb8-ea11915a70f2" />
+
+**Пример постройки миномётного орудия**
+
+<img width="485" height="345" alt="Миномётная пушка" src="https://github.com/user-attachments/assets/25b50b60-967d-4441-a45d-8810f06c9476" />
+
+**Миномётный снаряд со взрывателем**
+
+<img width="450" height="154" alt="Миномётный снаряд с взрывателем" src="https://github.com/user-attachments/assets/4ac1dbdd-29b2-4277-9d2d-deedca32fdf7" />
+
+**Пример постройки пушки**
+
+<img width="900" height="569" alt="javaw_5STKUKoQRp" src="https://github.com/user-attachments/assets/fb53001f-77b2-49a8-b280-e4161b758b04" />
+
