@@ -1,4 +1,6 @@
-# CBC — Ballistic Computer
+# CBC — Ballistic Calculator
+
+- Требуются моды Create, Create: Big Cannons, C:BC Going Ballistic
 
 Программа для расчёта направления и параметров наведения пушки или миномёта.
 
