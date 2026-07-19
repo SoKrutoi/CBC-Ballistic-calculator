@@ -171,7 +171,7 @@
           <button id="btnMortar" class="seg-btn" onclick="setMode('mortar')">Миномёт</button>
         </div>
         <button class="btn" style="margin-left:8px;padding:6px 14px;font-size:13px;" onclick="showMortarExample()" title="Пример миномёта">📷 Пример миномёта</button>
-        <a href="https://github.com/SoKrutoi/CBC-Ballistic-calculator/raw/main/minomet_by_sokrutoi.nbt" download class="btn btn-success" style="margin-left:6px;padding:6px 14px;font-size:13px;text-decoration:none;display:inline-block;" title="Скачать схематику миномёта">⬇️ Схематика миномёта</a>
+        <button class="btn btn-success" style="margin-left:6px;padding:6px 14px;font-size:13px;" onclick="downloadSchematic()" title="Скачать схематику миномёта">⬇️ Схематика миномёта</button>
         <div id="paramsFrame" class="flex" style="margin-left:10px;">
           <select id="projectile">
             <option>HE Shell</option><option>Heavy Shot</option><option>AP Shot</option>
@@ -1074,6 +1074,21 @@ init();
 </div>
 
 <script>
+function downloadSchematic(){
+  const url = 'https://raw.githubusercontent.com/SoKrutoi/CBC-Ballistic-calculator/main/minomet_by_sokrutoi.nbt';
+  fetch(url)
+    .then(r => r.blob())
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'minomet_by_sokrutoi.nbt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => alert('Не удалось скачать файл. Проверьте подключение к интернету.'));
+}
 function showMortarExample(){
   const m = document.getElementById('mortarModal');
   m.style.display = 'flex';
