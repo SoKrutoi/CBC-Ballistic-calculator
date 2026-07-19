@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CBC Ballistic Computer + Range Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #0d0d0d; color: #e0e0e0;
+    font-family: 'Roboto', sans-serif; font-size: 14px;
+  }
+  .container { max-width: 1600px; margin: 0 auto; padding: 10px; }
+  .header {
+    background: linear-gradient(90deg, #1E538D, #2a6fbd);
+    padding: 14px; border-radius: 12px; text-align: center;
+    font-size: 22px; font-weight: 700; margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .tab-btn {
+    background: #1e1e1e; border: 1px solid #333; color: #aaa;
+    padding: 10px 24px; border-radius: 8px; cursor: pointer;
+    font-weight: 500; transition: all .2s; font-size: 14px;
+  }
+  .tab-btn.active { background: #1E538D; color: #fff; border-color: #1E538D; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .panel {
+    background: #161616; border-radius: 12px; padding: 14px;
+    margin-bottom: 10px; border: 1px solid #222;
+  }
+  .row {
+    display: flex; align-items: center; gap: 8px;
+    flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .row label {
+    min-width: 200px; font-weight: 500; color: #bbb; font-size: 13px;
+  }
+  input, select, textarea {
+    background: #222; border: 1px solid #444; color: #eee;
+    padding: 6px 10px; border-radius: 6px; font-size: 14px; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: #1E538D; }
+  .btn {
+    background: #1E538D; color: #fff; border: none;
+    padding: 8px 18px; border-radius: 6px; cursor: pointer;
+    font-weight: 600; transition: filter .2s; font-size: 13px;
+  }
+  .btn:hover { filter: brightness(1.2); }
+  .btn-success { background: #50bc54; }
+  .btn-danger { background: #980404; }
+  .btn-warn { background: #ffb03a; color: #000; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .segmented {
+    display: flex; background: #222; border-radius: 6px; overflow: hidden;
+  }
+  .seg-btn {
+    background: transparent; border: none; color: #aaa;
+    padding: 6px 16px; cursor: pointer; font-size: 13px;
+  }
+  .seg-btn.active { background: #1E538D; color: #fff; }
+  .results {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px 0;
+  }
+  .result-card {
+    background: #1e1e1e; border-radius: 10px; padding: 12px;
+    text-align: center; border: 1px solid #2a2a2a;
+  }
+  .result-title { font-size: 11px; color: #888; text-transform: uppercase; margin-bottom: 4px; }
+  .result-value { font-size: 18px; font-weight: 700; }
+  .low { color: #50bc54; }
+  .high { color: #ffb03a; }
+  .graphs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    height: 520px; margin-top: 10px;
+  }
+  .graph-wrap {
+    background: #181818; border-radius: 12px; position: relative;
+    overflow: hidden; border: 1px solid #222; display: flex; flex-direction: column;
+  }
+  .graph-header {
+    padding: 8px 12px; font-weight: 700; font-size: 13px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: #1a1a1a; border-bottom: 1px solid #222;
+  }
+  .graph-body { flex: 1; position: relative; }
+  canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  .status { text-align: center; padding: 8px; font-weight: 600; min-height: 24px; font-size: 13px; }
+  .status.ok { color: #50bc54; }
+  .status.err { color: #ff4d4d; }
+  .status.warn { color: #ffb03a; }
+  .calib-list {
+    max-height: 200px; overflow-y: auto; background: #1a1a1a;
+    border-radius: 8px; padding: 8px; margin: 8px 0; border: 1px solid #2a2a2a;
+  }
+  .calib-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px; border-bottom: 1px solid #2a2a2a; font-size: 13px;
+  }
+  .calib-item:last-child { border-bottom: none; }
+  textarea { width: 100%; min-height: 140px; resize: vertical; }
+  .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; min-width: 80px; }
+  @media (max-width: 900px) {
+    .graphs { grid-template-columns: 1fr; height: auto; }
+    .graph-wrap { height: 400px; }
+    .results { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">CBC Ballistic Computer + Range Map <span style="font-size:13px;font-weight:400;color:#aaccee;margin-left:10px;">by SoKrutoi</span></div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('calc', this)">🎯 Расчёт траектории</button>
+    <button class="tab-btn" onclick="switchTab('calib', this)">🔧 Калибровка</button>
+  </div>
+
+  <!-- ===== РАСЧЁТ ===== -->
+  <div id="calc-tab" class="tab-content active">
+    <div class="panel">
+      <div class="row">
+        <label>Позиция Орудия (X;Y;Z):</label>
+        <input type="text" id="cx" placeholder="X" class="grow">
+        <input type="text" id="cy" placeholder="Y" class="grow">
+        <input type="text" id="cz" placeholder="Z" class="grow">
+      </div>
+      <div class="row">
+        <label>Тип Орудия:</label>
+        <div class="segmented">
+          <button id="btnCannon" class="seg-btn active" onclick="setMode('cannon')">Пушка</button>
+          <button id="btnMortar" class="seg-btn" onclick="setMode('mortar')">Миномёт</button>
+        </div>
+        <div id="paramsFrame" class="flex" style="margin-left:10px;">
+          <select id="projectile">
+            <option>HE Shell</option><option>Heavy Shot</option><option>AP Shot</option>
+            <option>AP Shell</option><option>APHE</option><option>Mortar Stone</option>
+          </select>
+          <span style="color:#888">Порох:</span>
+          <input type="text" id="powder" placeholder="шт" style="width:60px">
+          <span style="color:#888">Ствол:</span>
+          <input type="text" id="barrel" placeholder="бл" style="width:60px">
+        </div>
+      </div>
+      <div class="row">
+        <label>Позиция Цели (X;Y;Z):</label>
+        <input type="text" id="tx" placeholder="X" class="grow">
+        <input type="text" id="ty" placeholder="Y" class="grow">
+        <input type="text" id="tz" placeholder="Z" class="grow">
+      </div>
+      <div class="row" style="justify-content:center;">
+        <button id="calcBtn" class="btn" onclick="getAngles()" disabled>Рассчитать Траекторию</button>
+      </div>
+
+      <div class="results">
+        <div class="result-card">
+          <div class="result-title">YAW (Поворот)</div>
+          <div class="result-value" id="resYaw" style="color:#7cb1f2">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-title">V0 (начальная скорость)</div>
+          <div class="result-value" id="resSpeed" style="color:#aaa">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-title">Погрешность мода</div>
+          <div class="result-value" id="resTol" style="color:#888">±2 бл.</div>
+        </div>
+        <div class="result-card" style="border-color:#50bc54;">
+          <div class="result-title">1. НАСТИЛЬНАЯ (Прямой огонь)</div>
+          <div class="result-value low" id="resLowPitch">—</div>
+          <div style="font-size:12px;color:#aaa;margin-top:4px;" id="resLowTime">—</div>
+        </div>
+        <div class="result-card" style="border-color:#ffb03a;">
+          <div class="result-title">2. НАВЕСНАЯ (Гаубица)</div>
+          <div class="result-value high" id="resHighPitch">—</div>
+          <div style="font-size:12px;color:#aaa;margin-top:4px;" id="resHighTime">—</div>
+        </div>
+      </div>
+
+      <div class="status" id="status">Ожидание ввода параметров...</div>
+    </div>
+
+    <div class="graphs">
+      <div class="graph-wrap">
+        <div class="graph-header">
+          <span style="color:#7cb1f2">📐 Боковой вид (X-Y)</span>
+        </div>
+        <div class="graph-body"><canvas id="canvasSide"></canvas></div>
+      </div>
+      <div class="graph-wrap">
+        <div class="graph-header">
+          <span style="color:#ffb03a">🗺️ Вид сверху (X-Z)</span>
+          <button id="rangeToggleBtn" class="btn" style="padding:4px 10px;font-size:12px;" onclick="toggleRangeOverlay()">🎯 Зона: ВЫКЛ</button>
+        </div>
+        <div class="graph-body"><canvas id="canvasTop"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== КАЛИБРОВКА ===== -->
+  <div id="calib-tab" class="tab-content">
+    <div class="panel">
+      <div style="font-size:18px;font-weight:700;background:#1E538D;padding:10px;border-radius:8px;margin-bottom:10px;">🔧 Режим калибровки</div>
+      <div style="color:#aaa;margin-bottom:10px;font-size:13px;">
+        Введите данные реального выстрела. Программа подберёт физические константы под ваш модпак и сохранит их в localStorage.
+      </div>
+
+      <div class="row">
+        <label>Тип орудия для калибровки:</label>
+        <div class="segmented">
+          <button id="btnCalibCannon" class="seg-btn active" onclick="setCalibMode('cannon')">Пушка</button>
+          <button id="btnCalibMortar" class="seg-btn" onclick="setCalibMode('mortar')">Миномёт</button>
+        </div>
+      </div>
+      <div class="row">
+        <label>Позиция орудия (X;Y;Z):</label>
+        <input type="text" id="ccX" placeholder="X" style="width:100px">
+        <input type="text" id="ccY" placeholder="Y" style="width:100px">
+        <input type="text" id="ccZ" placeholder="Z" style="width:100px">
+      </div>
+      <div class="row">
+        <label>Факт. попадание (X;Y;Z):</label>
+        <input type="text" id="clX" placeholder="X" style="width:100px">
+        <input type="text" id="clY" placeholder="Y" style="width:100px">
+        <input type="text" id="clZ" placeholder="Z" style="width:100px">
+      </div>
+      <div class="row">
+        <label>Углы выстрела:</label>
+        <div>
+          <div style="font-size:11px;color:#7cb1f2;">Pitch (вертикальный)</div>
+          <input type="text" id="cPitch" placeholder="например 43.7" style="width:120px">
+        </div>
+        <div>
+          <div style="font-size:11px;color:#ffb03a;">Yaw (горизонтальный)</div>
+          <input type="text" id="cYaw" placeholder="например 90.0" style="width:120px">
+        </div>
+        <div>
+          <div style="font-size:11px;color:#50bc54;">Время полёта (сек, опц.)</div>
+          <input type="text" id="cAirtime" placeholder="например 24.5" style="width:120px">
+        </div>
+      </div>
+      <div class="row" id="calibCannonParams">
+        <label>Параметры пушки:</label>
+        <div>
+          <div style="font-size:11px;">Порох (шт)</div>
+          <input type="text" id="cPowder" placeholder="2" style="width:80px">
+        </div>
+        <div>
+          <div style="font-size:11px;">Длина ствола (бл)</div>
+          <input type="text" id="cBarrel" placeholder="4" style="width:80px">
+        </div>
+      </div>
+
+      <div class="row" style="justify-content:center;">
+        <button class="btn" onclick="addCalibPoint()">➕ Добавить точку</button>
+        <button class="btn btn-success" onclick="runCalibration()">🚀 Запустить калибровку</button>
+        <button class="btn btn-danger" onclick="resetCalib()">🔄 Сбросить всё</button>
+      </div>
+
+      <div style="font-weight:700;margin:8px 0;font-size:13px;">Точки калибровки:</div>
+      <div class="calib-list" id="calibList"></div>
+
+      <textarea id="calibResults" readonly>Результаты калибровки появятся здесь...</textarea>
+      <div class="status" id="calibStatus">Готов к калибровке</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==================== КОНФИГ / СОСТОЯНИЕ ==================== */
+const DEFAULT_CONFIG = {
+  mortar: { base_v: 8.32, slope: 0, drag: 1.0, gravity: -0.05, actual_length: 1.0, tolerance: 2.0 },
+  cannon: {
+    length_2: { base_v: 7.28, slope: 0.0147, drag: 1.0, gravity: -0.05, actual_length: 2.0 },
+    length_4: { base_v: 10.415, slope: 0.0140, drag: 1.0, gravity: -0.05, actual_length: 4.0 },
+    tolerance: 2.0
+  }
+};
+const LS_CONFIG = 'cbc_html_config';
+const LS_CALIBRATION = 'cbc_html_calibration';
+const LS_CALIB_POINTS = 'cbc_html_calib_points';
+
+let state = {
+  currentMode: 'cannon',
+  calibMode: 'cannon',
+  calibPoints: [],
+  lastRes: null,
+  lastCannon: null,
+  lastTarget: null,
+  lastRangeMap: null,
+  lastMaxDist: null,
+  rangeOverlay: false,
+  camSide: { ox:0, oy:0, scale:1, minScale:0.001, maxScale:1000, dragStart:null, initialized:false },
+  camTop:  { ox:0, oy:0, scale:1, minScale:0.001, maxScale:1000, dragStart:null, initialized:false }
+};
+
+function el(id){ return document.getElementById(id); }
+function round(v,d=2){ return Math.round(v*10**d)/10**d; }
+
+/* ==================== МАТЕМАТИКА ==================== */
+function loadCalibration(){
+  try{ return JSON.parse(localStorage.getItem(LS_CALIBRATION)) || {}; }catch{ return {}; }
+}
+function saveCalibration(cfg){ localStorage.setItem(LS_CALIBRATION, JSON.stringify(cfg)); }
+function resetCalibration(){ localStorage.removeItem(LS_CALIBRATION); }
+
+function getParams(mode, length){
+  const cal = loadCalibration();
+  if(mode === 'mortar'){
+    return { ...DEFAULT_CONFIG.mortar, ...(cal.mortar || {}) };
+  } else {
+    const cfg = { ...DEFAULT_CONFIG.cannon, ...(cal.cannon || {}) };
+    const l2 = { ...DEFAULT_CONFIG.cannon.length_2, ...(cfg.length_2 || {}) };
+    const l4 = { ...DEFAULT_CONFIG.cannon.length_4, ...(cfg.length_4 || {}) };
+    if(length <= 2) return { ...l2 };
+    if(length >= 4) return { ...l4 };
+    const t = (length - 2)/2.0;
+    return {
+      base_v: l2.base_v + (l4.base_v - l2.base_v)*t,
+      slope:  l2.slope  + (l4.slope  - l2.slope )*t,
+      drag: l2.drag || 1.0,
+      gravity: l2.gravity || -0.05,
+      actual_length: length,
+      tolerance: cfg.tolerance || 2.0
+    };
+  }
+}
+
+function simulate(pitchDeg, params, cannonY=0, targetY=0, maxTicks=3000){
+  const baseV = params.base_v;
+  const slope = params.slope || 0;
+  const drag  = params.drag  || 1.0;
+  const grav  = params.gravity || -0.05;
+  const actLen = params.actual_length || 1.0;
+  const initSpeed = baseV - slope * pitchDeg;
+  const rad = pitchDeg * Math.PI / 180;
+  const xStart = actLen * Math.cos(rad);
+  const yStart = cannonY + Math.sin(rad) * actLen;
+  let posX = 0, posY = yStart;
+  let velX = Math.cos(rad) * initSpeed;
+  let velY = Math.sin(rad) * initSpeed;
+  const path = [[0, cannonY], [xStart, yStart]];
+  let lastX = posX, lastY = posY, ticks = 0;
+  while(ticks < maxTicks){
+    path.push([posX + xStart, posY]);
+    if(ticks > 0 && velY < 0 && posY <= targetY && lastY > targetY){
+      if(posY !== lastY){
+        const tFrac = (lastY - targetY) / (lastY - posY);
+        const exactX = lastX + tFrac * (posX - lastX);
+        return { y: posY, ticks: (ticks-1)+tFrac, path, reached: true, landingX: exactX + xStart };
+      }
+    }
+    if(velY < 0 && posY < (targetY - 200)) break;
+    lastX = posX; lastY = posY;
+    posX += velX; posY += velY;
+    velX *= drag; velY = velY * drag + grav;
+    ticks++;
+  }
+  return { y: posY, ticks, path, reached: false, landingX: posX + xStart };
+}
+
+function simulateDistance(pitchDeg, params, cannonY, targetY){
+  const s = simulate(pitchDeg, params, cannonY, targetY);
+  return [s.landingX, s.ticks];
+}
+
+function evaluatePitch(pitchDeg, cannon, target, params){
+  const dx = target[0]-cannon[0], dz = target[2]-cannon[2];
+  const dist = Math.sqrt(dx*dx + dz*dz);
+  const sim = simulate(pitchDeg, params, cannon[1], target[1]);
+  const targetX = dist;
+  for(let i=1;i<sim.path.length;i++){
+    const [px1,py1] = sim.path[i-1], [px2,py2] = sim.path[i];
+    if((px1<=targetX && targetX<=px2)||(px1>=targetX && targetX>=px2)){
+      if(px2!==px1){
+        const t = (targetX-px1)/(px2-px1);
+        return [py1 + t*(py2-py1), sim.ticks, sim.path, true];
+      }
+    }
+  }
+  return [sim.y, sim.ticks, sim.path, false];
+}
+
+function binarySearchPitch(low, high, cannon, target, params){
+  const targetY = target[1];
+  for(let i=0;i<50;i++){
+    const mid = (low+high)/2;
+    const [ey,,,reached] = evaluatePitch(mid, cannon, target, params);
+    if(!reached){ high = mid; continue; }
+    const diff = ey - targetY;
+    if(Math.abs(diff) < 1e-4) return mid;
+    const [ly,,,lReached] = evaluatePitch(low, cannon, target, params);
+    if(lReached){
+      if((ly-targetY)*diff < 0) high = mid; else low = mid;
+    } else low = mid;
+  }
+  return (low+high)/2;
+}
+
+function BallisticsToTarget(cannon, target, power, length, mode, projectileType){
+  const params = getParams(mode, length);
+  const tolerance = params.tolerance || 2.0;
+  const dx = target[0]-cannon[0], dz = target[2]-cannon[2];
+  const distance = Math.sqrt(dx*dx+dz*dz);
+  let yaw = 180 + Math.atan2(dx, -dz)*57.2957795131;
+  yaw = (yaw%360+360)%360;
+  const [minP, maxP] = mode==='mortar'?[15,85]:[-30,60];
+  const steps = 300;
+  const pitches = Array.from({length:steps},(_,i)=>minP+(maxP-minP)*i/(steps-1));
+  const intervals = [];
+  let lastPitch=null, lastDiff=null;
+  for(const p of pitches){
+    const [ey,,,reached] = evaluatePitch(p, cannon, target, params);
+    const curDiff = reached ? ey-target[1] : -999999;
+    if(lastPitch!==null){
+      if(lastDiff!==-999999 && curDiff!==-999999){
+        if((lastDiff<=0 && curDiff>0)||(lastDiff>=0 && curDiff<0)) intervals.push([lastPitch,p]);
+      } else if((lastDiff===-999999 && curDiff>0)||(lastDiff>0 && curDiff===-999999)){
+        intervals.push([lastPitch,p]);
+      }
+    }
+    lastPitch=p; lastDiff=curDiff;
+  }
+  if(!intervals.length) throw new Error("Цель недостижима в рамках разрешенных углов орудия!");
+  const found = [];
+  for(const [lo,hi] of intervals) found.push(binarySearchPitch(lo,hi,cannon,target,params));
+  const uniq = [...new Set(found)].sort((a,b)=>a-b);
+  let lowSol=null, highSol=null;
+  if(uniq.length){
+    const p1=uniq[0];
+    const [,t1,path1] = evaluatePitch(p1, cannon, target, params);
+    lowSol = {pitch:p1, time:round(t1/20,2), path:path1};
+    const hi = uniq.filter(p=>Math.abs(p-p1)>1.0);
+    if(hi.length){
+      const p2=hi[hi.length-1];
+      const [,t2,path2] = evaluatePitch(p2, cannon, target, params);
+      highSol = {pitch:p2, time:round(t2/20,2), path:path2};
+    }
+  }
+  const dispSpeed = params.base_v - (params.slope||0)*(uniq[0]||0);
+  return { yaw, speed:round(dispSpeed,2), low:lowSol, high:highSol, distance, tolerance };
+}
+
+/* ==================== RANGE MAP ==================== */
+function precomputeLandingCurves(cannonY, targetY, params, mode){
+  const pitches = mode==='mortar'
+    ? Array.from({length:24},(_,i)=>15+i*3)
+    : Array.from({length:31},(_,i)=>-30+i*3);
+  return pitches.map(p=>({pitch:p, dist:simulateDistance(p,params,cannonY,targetY)[0]}));
+}
+function checkTrajectoriesFromCurves(curves, targetDist, threshold=5){
+  let hasLow=false, hasHigh=false;
+  for(let i=0;i<curves.length-1;i++){
+    const {pitch:p1,dist:d1}=curves[i], {pitch:p2,dist:d2}=curves[i+1];
+    if((d1<=targetDist&&targetDist<=d2)||(d2<=targetDist&&targetDist<=d1)){
+      const mid=(p1+p2)/2; if(mid<45) hasLow=true; else hasHigh=true;
+    }
+    if(Math.abs(d1-targetDist)<=threshold){ if(p1<45) hasLow=true; else hasHigh=true; }
+  }
+  const last=curves[curves.length-1];
+  if(Math.abs(last.dist-targetDist)<=threshold){ if(last.pitch<45) hasLow=true; else hasHigh=true; }
+  return [hasLow,hasHigh];
+}
+function generateRangeMap(cannonY, targetY, params, mode, maxDist=null, step=10){
+  const curves = precomputeLandingCurves(cannonY, targetY, params, mode);
+  const maxD = maxDist || Math.max(...curves.map(c=>c.dist))*1.1;
+  const map={};
+  for(let d=0; d<=maxD; d+=step) map[round(d,1)] = checkTrajectoriesFromCurves(curves,d);
+  return [map, maxD];
+}
+
+/* ==================== КАЛИБРОВКА ==================== */
+function calibrate(mode, points, length=null){
+  let bestErr=Infinity, best=null;
+  const realDist = pt=>{ const dx=pt.landing[0]-pt.cannon[0], dz=pt.landing[2]-pt.cannon[2]; return Math.sqrt(dx*dx+dz*dz); };
+  const realTime = pt=> pt.airtime??null;
+  if(mode==='mortar'){
+    for(let base_v=5; base_v<=11; base_v+=0.1){
+      for(const drag of [1.0,0.9999,0.9995,0.999,0.998,0.995,0.99]){
+        for(const gravity of [-0.08,-0.07,-0.06,-0.05,-0.045,-0.04,-0.035,-0.03,-0.025,-0.02]){
+          let err=0;
+          for(const pt of points){
+            const [sd,st]=simulateDistance(pt.pitch,{base_v,slope:0,drag,gravity,actual_length:1.0},pt.cannon[1],pt.landing[1]);
+            let e=(sd-realDist(pt))**2; const t=realTime(pt); if(t!=null) e+=((st/20)-t)**2*100;
+            err+=e;
+          }
+          if(err<bestErr){ bestErr=err; best={base_v,slope:0,drag,gravity,actual_length:1.0}; }
+        }
+      }
+    }
+    if(best){
+      const bvC=best.base_v;
+      for(let base_v=bvC-0.05; base_v<=bvC+0.05; base_v+=0.002){
+        let err=0;
+        for(const pt of points){
+          const [sd,st]=simulateDistance(pt.pitch,{base_v,slope:0,drag:best.drag,gravity:best.gravity,actual_length:1.0},pt.cannon[1],pt.landing[1]);
+          let e=(sd-realDist(pt))**2; const t=realTime(pt); if(t!=null) e+=((st/20)-t)**2*100;
+          err+=e;
+        }
+        if(err<bestErr){ bestErr=err; best={...best,base_v}; }
+      }
+    }
+  } else {
+    const cannonLen = length || (points[0]?.length || 4);
+    for(let base_v=5; base_v<=15; base_v+=0.1){
+      for(let slope=0; slope<=0.025; slope+=0.001){
+        for(const drag of [1.0,0.9995,0.999,0.998,0.995,0.99]){
+          let err=0;
+          for(const pt of points){
+            const [sd,st]=simulateDistance(pt.pitch,{base_v,slope,drag,gravity:-0.05,actual_length:pt.length||cannonLen},pt.cannon[1],pt.landing[1]);
+            let e=(sd-realDist(pt))**2; const t=realTime(pt); if(t!=null) e+=((st/20)-t)**2*100;
+            err+=e;
+          }
+          if(err<bestErr){ bestErr=err; best={base_v,slope,drag,gravity:-0.05,actual_length:cannonLen}; }
+        }
+      }
+    }
+    if(best){
+      const bvC=best.base_v, sC=best.slope;
+      for(let base_v=bvC-0.05; base_v<=bvC+0.05; base_v+=0.005){
+        for(let slope=sC-0.001; slope<=sC+0.001; slope+=0.0001){
+          let err=0;
+          for(const pt of points){
+            const [sd,st]=simulateDistance(pt.pitch,{base_v,slope,drag:best.drag,gravity:-0.05,actual_length:pt.length||cannonLen},pt.cannon[1],pt.landing[1]);
+            let e=(sd-realDist(pt))**2; const t=realTime(pt); if(t!=null) e+=((st/20)-t)**2*100;
+            err+=e;
+          }
+          if(err<bestErr){ bestErr=err; best={...best,base_v,slope}; }
+        }
+      }
+    }
+  }
+  const rmse = best ? Math.sqrt(bestErr/points.length) : 0;
+  return [best, rmse];
+}
+
+function applyCalibration(mode, params, length=null){
+  const cal = loadCalibration();
+  if(mode==='mortar') cal.mortar = params;
+  else {
+    cal.cannon = cal.cannon || {};
+    const len = length || params.actual_length || 4;
+    if(len <= 2) cal.cannon.length_2 = params;
+    else if(len >= 4) cal.cannon.length_4 = params;
+    else { cal.cannon.length_2 = params; cal.cannon.length_4 = params; }
+  }
+  saveCalibration(cal);
+}
+
+/* ==================== CANVAS УТИЛИТЫ ==================== */
+function getGridStep(scale){
+  if(scale<=0) return 1;
+  const raw=80/scale; if(raw<=0) return 1;
+  const exp=Math.floor(Math.log10(raw));
+  const mant=raw/(10**exp);
+  if(mant<1.5) return 1*(10**exp);
+  if(mant<3.5) return 2*(10**exp);
+  if(mant<7.5) return 5*(10**exp);
+  return 10*(10**exp);
+}
+function worldToScreen(W,H,wx,wy,cam,invertY=false){
+  return [cam.ox + wx*cam.scale, invertY ? cam.oy + wy*cam.scale : cam.oy - wy*cam.scale];
+}
+function screenToWorld(W,H,sx,sy,cam,invertY=false){
+  return [(sx-cam.ox)/cam.scale, invertY ? (sy-cam.oy)/cam.scale : -(sy-cam.oy)/cam.scale];
+}
+function fitCamera(W,H,cam,wxMin,wxMax,wyMin,wyMax,invertY=false){
+  if(W<20||H<20) return;
+  const worldW=wxMax-wxMin, worldH=wyMax-wyMin;
+  if(worldW<=0||worldH<=0) return;
+  const pad=60;
+  cam.scale = Math.max(cam.minScale, Math.min(cam.maxScale, Math.min((W-2*pad)/worldW,(H-2*pad)/worldH)));
+  const cx=(wxMin+wxMax)/2, cy=(wyMin+wyMax)/2;
+  cam.ox = W/2 - cx*cam.scale;
+  cam.oy = invertY ? H/2 - cy*cam.scale : H/2 + cy*cam.scale;
+  cam.initialized = true;
+}
+function zoomAt(W,H,cam,sx,sy,factor,invertY=false){
+  const [wx,wy]=screenToWorld(W,H,sx,sy,cam,invertY);
+  cam.scale = Math.max(cam.minScale, Math.min(cam.maxScale, cam.scale*factor));
+  cam.ox = sx - wx*cam.scale;
+  cam.oy = invertY ? sy - wy*cam.scale : sy + wy*cam.scale;
+}
+
+function drawGrid(ctx,W,H,cam,wxMin,wxMax,wyMin,wyMax,invertY=false){
+  const step=getGridStep(cam.scale);
+  ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=1;
+  const xMin=Math.min(wxMin,wxMax), xMax=Math.max(wxMin,wxMax);
+  const yMin=Math.min(wyMin,wyMax), yMax=Math.max(wyMin,wyMax);
+  ctx.fillStyle='#fff'; ctx.font='10px Roboto'; ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let x=Math.floor(xMin/step)*step; x<=xMax+step/2; x+=step){
+    const [sx]=worldToScreen(W,H,x,0,cam,invertY);
+    if(sx<-2||sx>W+2) continue;
+    ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,H); ctx.stroke();
+    ctx.fillText(Math.abs(x)>0.01?String(Math.round(x)):'0', sx, H-16);
+  }
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  for(let y=Math.floor(yMin/step)*step; y<=yMax+step/2; y+=step){
+    const [,sy]=worldToScreen(W,H,0,y,cam,invertY);
+    if(sy<-2||sy>H+2) continue;
+    ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(W,sy); ctx.stroke();
+    ctx.fillText(Math.abs(y)>0.01?String(Math.round(y)):'0', 6, sy);
+  }
+  const [sx0]=worldToScreen(W,H,0,0,cam,invertY);
+  const [,sy0]=worldToScreen(W,H,0,0,cam,invertY);
+  ctx.strokeStyle='#444'; ctx.lineWidth=1.5;
+  if(sx0>=-2&&sx0<=W+2){ ctx.beginPath(); ctx.moveTo(sx0,0); ctx.lineTo(sx0,H); ctx.stroke(); }
+  if(sy0>=-2&&sy0<=H+2){ ctx.beginPath(); ctx.moveTo(0,sy0); ctx.lineTo(W,sy0); ctx.stroke(); }
+}
+
+function drawScaleBar(ctx,cam,W,H){
+  const targetPx=100;
+  const worldLen=targetPx/cam.scale;
+  if(worldLen<=0) return;
+  const exp=10**Math.floor(Math.log10(worldLen));
+  const mant=worldLen/exp;
+  let nice;
+  if(mant<1.5) nice=1*exp; else if(mant<3.5) nice=2*exp; else if(mant<7.5) nice=5*exp; else nice=10*exp;
+  const actualPx=nice*cam.scale; if(actualPx<20) return;
+  const margin=15, x2=W-margin, x1=x2-actualPx, y=H-25;
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1,y-4); ctx.lineTo(x1,y+4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x2,y-4); ctx.lineTo(x2,y+4); ctx.stroke();
+  const label = nice>=1000?`${Math.round(nice/1000)}км`:(nice===Math.round(nice)?`${Math.round(nice)}м`:`${nice.toFixed(1)}м`);
+  ctx.fillStyle='#fff'; ctx.font='11px Roboto'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+  ctx.fillText(label,(x1+x2)/2,y-6);
+}
+
+/* ==================== ОТРИСОВКА ГРАФИКОВ ==================== */
+function drawSideGraph(){
+  const c=el('canvasSide'), ctx=c.getContext('2d'), cam=state.camSide;
+  ctx.clearRect(0,0,c.width,c.height);
+  if(!state.lastRes||!state.lastCannon) return;
+  const W=c.width, H=c.height; if(W<50||H<50) return;
+  const res=state.lastRes, cY=state.lastCannon[1], tY=state.lastTarget[1], dist=res.distance;
+  const pts=[];
+  if(res.low) pts.push(...res.low.path);
+  if(res.high) pts.push(...res.high.path);
+  if(!pts.length) pts.push([0,cY],[dist,tY]);
+  const xs=pts.map(p=>p[0]).concat([0,dist]);
+  const ys=pts.map(p=>p[1]).concat([cY,tY]);
+  const xmin=Math.min(...xs)-20, xmax=Math.max(...xs)+20;
+  const ymin=Math.min(...ys)-20, ymax=Math.max(...ys)+20;
+  if(!cam.initialized) fitCamera(W,H,cam,xmin,xmax,ymin,ymax);
+  const [lwx]=screenToWorld(W,H,0,0,cam); const [rwx]=screenToWorld(W,H,W,0,cam);
+  const [,twy]=screenToWorld(W,H,0,0,cam); const [,bwy]=screenToWorld(W,H,0,H,cam);
+  drawGrid(ctx,W,H,cam,lwx-50,rwx+50,bwy-50,twy+50);
+  if(res.low){
+    ctx.strokeStyle='#50bc54'; ctx.lineWidth=2.5; ctx.beginPath();
+    for(let i=0;i<res.low.path.length;i++){
+      const [sx,sy]=worldToScreen(W,H,res.low.path[i][0],res.low.path[i][1],cam);
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+  if(res.high){
+    ctx.strokeStyle='#ffb03a'; ctx.lineWidth=2.5; ctx.beginPath();
+    for(let i=0;i<res.high.path.length;i++){
+      const [sx,sy]=worldToScreen(W,H,res.high.path[i][0],res.high.path[i][1],cam);
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.stroke();
+  }
+  const [cx_c,cy_c]=worldToScreen(W,H,0,cY,cam);
+  ctx.fillStyle='#1E538D'; ctx.strokeStyle='#fff'; ctx.lineWidth=1;
+  ctx.fillRect(cx_c-6,cy_c-6,12,12); ctx.strokeRect(cx_c-6,cy_c-6,12,12);
+  ctx.fillStyle='#7cb1f2'; ctx.font='12px Roboto'; ctx.textAlign='center';
+  ctx.fillText(`Орудие Y=${Math.round(cY)}`,cx_c,cy_c-10);
+  const [cx_t,cy_t]=worldToScreen(W,H,dist,tY,cam);
+  ctx.fillStyle='#980404'; ctx.beginPath(); ctx.arc(cx_t,cy_t,6,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.stroke();
+  ctx.fillStyle='#ff4d4d';
+  ctx.fillText(`Цель Y=${Math.round(tY)}`,cx_t,cy_t-10);
+  const tol=res.tolerance||2;
+  if(tol>0){
+    ctx.strokeStyle='#ff4d4d'; ctx.lineWidth=1; ctx.setLineDash([3,2]);
+    ctx.beginPath(); ctx.moveTo(cx_t-15,cy_t); ctx.lineTo(cx_t+15,cy_t); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+function drawRangeOverlay(ctx,W,H,cam,cX,cZ,leftWx,rightWx,topWz,bottomWz){
+  if(!state.lastRangeMap||!state.lastMaxDist) return;
+  const map=state.lastRangeMap, maxDist=state.lastMaxDist;
+  let cellW=Math.max(5,Math.floor(20/cam.scale)); cellW=Math.max(cellW,5);
+  const xMinVis=Math.min(leftWx,rightWx), xMaxVis=Math.max(leftWx,rightWx);
+  const zMinVis=Math.min(topWz,bottomWz), zMaxVis=Math.max(topWz,bottomWz);
+  const startX=Math.floor(xMinVis/cellW)*cellW, endX=Math.ceil(xMaxVis/cellW)*cellW;
+  const startZ=Math.floor(zMinVis/cellW)*cellW, endZ=Math.ceil(zMaxVis/cellW)*cellW;
+  for(let wx=startX; wx<=endX; wx+=cellW){
+    for(let wz=startZ; wz<=endZ; wz+=cellW){
+      const offX=wx-cX, offZ=wz-cZ;
+      const d=Math.sqrt(offX*offX+offZ*offZ);
+      const rd=Math.round(d/10)*10;
+      let color='#1a1a1a';
+      if(rd<=maxDist){
+        const [hasLow,hasHigh]=map[round(rd,1)]||[false,false];
+        if(hasLow&&hasHigh) color='#8B4513'; else if(hasLow) color='#2d5a2f'; else if(hasHigh) color='#8B6508';
+      }
+      const [sx1,sy1]=worldToScreen(W,H,wx,wz,cam,true);
+      const [sx2,sy2]=worldToScreen(W,H,wx+cellW,wz+cellW,cam,true);
+      ctx.fillStyle=color; ctx.fillRect(sx1,sy1,sx2-sx1,sy2-sy1);
+    }
+  }
+  let lx=10, ly=H-90;
+  const items=[['#8B4513','Прямой + Навесной'],['#2d5a2f','Только прямой'],['#8B6508','Только навесной'],['#1a1a1a','Недостижимо']];
+  ctx.font='11px Roboto'; ctx.textAlign='left'; ctx.textBaseline='middle';
+  for(const [col,txt] of items){
+    ctx.fillStyle=col; ctx.strokeStyle='#fff'; ctx.lineWidth=1;
+    ctx.fillRect(lx,ly,12,12); ctx.strokeRect(lx,ly,12,12);
+    ctx.fillStyle='#ccc'; ctx.fillText(txt,lx+18,ly+6); ly+=18;
+  }
+}
+
+function drawTopdownGraph(){
+  const c=el('canvasTop'), ctx=c.getContext('2d'), cam=state.camTop;
+  ctx.clearRect(0,0,c.width,c.height);
+  if(!state.lastRes||!state.lastCannon) return;
+  const W=c.width, H=c.height; if(W<50||H<50) return;
+  const cannon=state.lastCannon, target=state.lastTarget;
+  const cX=cannon[0], cZ=cannon[2], tX=target[0], tZ=target[2];
+  const dx=tX-cX, dz=tZ-cZ, dist=Math.sqrt(dx*dx+dz*dz);
+  const isMortar=state.currentMode==='mortar';
+  const dispersion=isMortar?Math.max(dist*0.10,8):Math.max(dist*0.02,3);
+  let pitch=45;
+  if(state.lastRes.low) pitch=Math.abs(state.lastRes.low.pitch);
+  else if(state.lastRes.high) pitch=Math.abs(state.lastRes.high.pitch);
+  let longDisp, latDisp;
+  if(pitch<25){ longDisp=dispersion*1.6; latDisp=dispersion*0.5; } else { longDisp=latDisp=dispersion; }
+  const pad=Math.max(longDisp,dispersion)*1.5+50;
+  const xmin=Math.min(cX,tX)-pad, xmax=Math.max(cX,tX)+pad;
+  const zmin=Math.min(cZ,tZ)-pad, zmax=Math.max(cZ,tZ)+pad;
+  if(!cam.initialized) fitCamera(W,H,cam,xmin,xmax,zmin,zmax,true);
+  const [lwx]=screenToWorld(W,H,0,0,cam,true); const [rwx]=screenToWorld(W,H,W,0,cam,true);
+  const [,twz]=screenToWorld(W,H,0,0,cam,true); const [,bwz]=screenToWorld(W,H,0,H,cam,true);
+  if(state.rangeOverlay) drawRangeOverlay(ctx,W,H,cam,cX,cZ,lwx,rwx,twz,bwz);
+  drawGrid(ctx,W,H,cam,lwx-50,rwx+50,twz-50,bwz+50,true);
+  const [cx0,cz0]=worldToScreen(W,H,cX,cZ,cam,true);
+  const [cx_t,cz_t]=worldToScreen(W,H,tX,tZ,cam,true);
+  ctx.strokeStyle='#1E538D'; ctx.lineWidth=2; ctx.setLineDash([5,3]);
+  ctx.beginPath(); ctx.moveTo(cx0,cz0); ctx.lineTo(cx_t,cz_t); ctx.stroke(); ctx.setLineDash([]);
+  if(pitch<25){
+    const theta=Math.atan2(dx,dz);
+    ctx.strokeStyle='#ff4d4d'; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    for(let i=0;i<=64;i++){
+      const phi=2*Math.PI*i/64;
+      const localX=longDisp*Math.cos(phi), localZ=latDisp*Math.sin(phi);
+      const offX=localX*Math.sin(theta)-localZ*Math.cos(theta);
+      const offZ=localX*Math.cos(theta)+localZ*Math.sin(theta);
+      const [sx,sy]=worldToScreen(W,H,tX+offX,tZ+offZ,cam,true);
+      if(i===0) ctx.moveTo(sx,sy); else ctx.lineTo(sx,sy);
+    }
+    ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+    const [lx,ly]=worldToScreen(W,H,tX+longDisp*Math.sin(theta),tZ+longDisp*Math.cos(theta),cam,true);
+    ctx.fillStyle='#ff4d4d'; ctx.font='12px Roboto'; ctx.textAlign='left';
+    ctx.fillText(`±${Math.round(longDisp)}×${Math.round(latDisp)}м`,lx+10,ly);
+  } else {
+    const r=dispersion*cam.scale;
+    ctx.strokeStyle='#ff4d4d'; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.arc(cx_t,cz_t,r,0,Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
+    let labelX=cx_t+r+8, anchor='left';
+    if(labelX>W-20){ labelX=cx_t-r-8; anchor='right'; }
+    ctx.fillStyle='#ff4d4d'; ctx.textAlign=anchor;
+    ctx.fillText(`±${Math.round(dispersion)}м`,labelX,cz_t);
+  }
+  ctx.fillStyle='#1E538D'; ctx.strokeStyle='#fff'; ctx.lineWidth=1;
+  ctx.fillRect(Math.round(cx0)-7,Math.round(cz0)-7,14,14); ctx.strokeRect(Math.round(cx0)-7,Math.round(cz0)-7,14,14);
+  ctx.fillStyle='#7cb1f2'; ctx.font='12px Roboto'; ctx.textAlign='center';
+  ctx.fillText(`Орудие (${Math.round(cX)},${Math.round(cZ)})`,cx0,cz0-18);
+  ctx.fillStyle='#980404'; ctx.beginPath(); ctx.arc(cx_t,cz_t,6,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#fff'; ctx.stroke();
+  ctx.fillStyle='#ff4d4d';
+  ctx.fillText(`Цель (${Math.round(tX)},${Math.round(tZ)})`,cx_t,cz_t-18);
+  const midX=(cx0+cx_t)/2, midZ=(cz0+cz_t)/2;
+  ctx.fillStyle='#fff'; ctx.font='bold 13px Roboto'; ctx.textAlign='center';
+  ctx.fillText(`${Math.round(dist)}м`,midX,midZ-12);
+  drawScaleBar(ctx,cam,W,H);
+}
+
+function redrawAll(){ drawSideGraph(); drawTopdownGraph(); }
+
+/* ==================== GUI ЛОГИКА ==================== */
+function validateFloat(input){
+  const v=input.value;
+  if(v===''||v==='-'||v==='.'||v==='-.') return;
+  if(isNaN(parseFloat(v))) input.value = v.slice(0,-1);
+}
+function controlButton(){
+  const ids=['cx','cy','cz','tx','ty','tz'];
+  if(state.currentMode==='cannon') ids.push('powder','barrel');
+  const ok = ids.every(id=>el(id).value.trim()!=='');
+  el('calcBtn').disabled = !ok;
+  return ok;
+}
+function setStatus(msg,type){
+  const s=el('status'); s.textContent=msg; s.className='status '+type;
+}
+function setCalibStatus(msg,type){
+  const s=el('calibStatus'); s.textContent=msg; s.className='status '+type;
+}
+
+function getAngles(){
+  if(!controlButton()) return;
+  try{
+    const cannon=[parseFloat(el('cx').value),parseFloat(el('cy').value),parseFloat(el('cz').value)];
+    const target=[parseFloat(el('tx').value),parseFloat(el('ty').value),parseFloat(el('tz').value)];
+    let powder=1, barrel=1, proj='Mortar Shell';
+    if(state.currentMode==='cannon'){
+      powder=parseFloat(el('powder').value); barrel=parseFloat(el('barrel').value);
+      proj=el('projectile').value;
+      if(powder<=0||barrel<=0) return;
+    }
+    const res=BallisticsToTarget(cannon,target,powder,barrel,state.currentMode,proj);
+    state.lastRes=res; state.lastCannon=cannon; state.lastTarget=target;
+    el('resYaw').textContent=`${round(res.yaw,1)}°`;
+    el('resSpeed').textContent=`${res.speed} бл/т`;
+    el('resTol').textContent=`±${res.tolerance} бл.`;
+    if(res.low){ el('resLowPitch').textContent=`${round(res.low.pitch,1)}°`; el('resLowTime').textContent=`${res.low.time} сек.`; }
+    else { el('resLowPitch').textContent='Недоступно'; el('resLowTime').textContent='—'; }
+    if(res.high){ el('resHighPitch').textContent=`${round(res.high.pitch,1)}°`; el('resHighTime').textContent=`${res.high.time} сек.`; }
+    else { el('resHighPitch').textContent='Недоступно'; el('resHighTime').textContent='—'; }
+    setStatus(`Траектория построена. Точность ±${res.tolerance} бл.`,'ok');
+    saveConfig();
+    const params=getParams(state.currentMode, state.currentMode==='cannon'?barrel:null);
+    const [rangeMap,maxDist]=generateRangeMap(cannon[1],target[1],params,state.currentMode);
+    state.lastRangeMap=rangeMap; state.lastMaxDist=maxDist;
+    state.camSide.initialized=false; state.camTop.initialized=false;
+    requestAnimationFrame(redrawAll);
+  }catch(e){
+    setStatus(e.message,'err');
+    state.lastRes=null;
+    el('canvasSide').getContext('2d').clearRect(0,0,el('canvasSide').width,el('canvasSide').height);
+    el('canvasTop').getContext('2d').clearRect(0,0,el('canvasTop').width,el('canvasTop').height);
+  }
+}
+
+function setMode(mode){
+  state.currentMode=mode;
+  el('btnCannon').classList.toggle('active',mode==='cannon');
+  el('btnMortar').classList.toggle('active',mode==='mortar');
+  handleModeSwitch(mode);
+}
+function handleModeSwitch(mode){
+  const pf=el('paramsFrame');
+  pf.style.display = (mode==='mortar')?'none':'flex';
+  controlButton(); getAngles();
+}
+function toggleRangeOverlay(){
+  state.rangeOverlay=!state.rangeOverlay;
+  const btn=el('rangeToggleBtn');
+  btn.textContent=state.rangeOverlay?'🎯 Зона: ВКЛ':'🎯 Зона: ВЫКЛ';
+  btn.className=state.rangeOverlay?'btn btn-success':'btn';
+  redrawAll();
+}
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  el('calc-tab').classList.toggle('active',name==='calc');
+  el('calib-tab').classList.toggle('active',name==='calib');
+  if(name==='calc') setTimeout(resizeCanvases,50);
+}
+
+/* ==================== КАЛИБРОВКА UI ==================== */
+function setCalibMode(mode){
+  state.calibMode=mode;
+  el('btnCalibCannon').classList.toggle('active',mode==='cannon');
+  el('btnCalibMortar').classList.toggle('active',mode==='mortar');
+  el('calibCannonParams').style.display = (mode==='mortar')?'none':'flex';
+}
+function addCalibPoint(){
+  try{
+    const pt={
+      cannon:[parseFloat(el('ccX').value),parseFloat(el('ccY').value),parseFloat(el('ccZ').value)],
+      landing:[parseFloat(el('clX').value),parseFloat(el('clY').value),parseFloat(el('clZ').value)],
+      pitch:parseFloat(el('cPitch').value), yaw:parseFloat(el('cYaw').value), mode:state.calibMode
+    };
+    if(state.calibMode==='cannon'){ pt.power=parseFloat(el('cPowder').value); pt.length=parseFloat(el('cBarrel').value); }
+    const at=el('cAirtime').value.trim(); if(at) pt.airtime=parseFloat(at);
+    state.calibPoints.push(pt); saveCalibPoints(); updateCalibList();
+    setCalibStatus(`Точка добавлена. Всего: ${state.calibPoints.length}`,'ok');
+  }catch(e){ setCalibStatus('Ошибка: проверьте формат чисел!','err'); }
+}
+function updateCalibList(){
+  const box=el('calibList'); box.innerHTML='';
+  state.calibPoints.forEach((pt,i)=>{
+    const row=document.createElement('div'); row.className='calib-item';
+    const ms=pt.mode==='mortar'?'Миномёт':'Пушка';
+    let txt=`${i+1}. ${ms} | Pitch:${pt.pitch.toFixed(1)}° | Yaw:${pt.yaw.toFixed(1)}°`;
+    if(pt.mode==='cannon') txt+=` | Порох:${pt.power??'-'} | Ствол:${pt.length??'-'}`;
+    if(pt.airtime!=null) txt+=` | Время:${pt.airtime.toFixed(1)}с`;
+    row.innerHTML=`<span>${txt}</span><button class="btn btn-danger" style="padding:2px 8px;font-size:12px;" onclick="removeCalibPoint(${i})">✕</button>`;
+    box.appendChild(row);
+  });
+}
+function removeCalibPoint(idx){ state.calibPoints.splice(idx,1); saveCalibPoints(); updateCalibList(); setCalibStatus(`Точка удалена. Всего: ${state.calibPoints.length}`,'warn'); }
+function runCalibration(){
+  if(!state.calibPoints.length){ setCalibStatus('Нужна хотя бы 1 точка!','err'); return; }
+  setCalibStatus('Калибровка выполняется...','warn');
+  setTimeout(()=>{
+    const mortarPts=state.calibPoints.filter(p=>p.mode==='mortar');
+    const cannonPts=state.calibPoints.filter(p=>p.mode==='cannon');
+    let out='';
+    if(mortarPts.length){
+      const [params,rmse]=calibrate('mortar',mortarPts);
+      applyCalibration('mortar',params);
+      out+=`【Миномёт】\n  base_v = ${params.base_v.toFixed(3)}\n  drag = ${params.drag.toFixed(5)}\n  gravity = ${params.gravity.toFixed(4)}\n  RMSE = ${rmse.toFixed(2)} блоков\n\n`;
+    }
+    if(cannonPts.length){
+      const lengths={};
+      cannonPts.forEach(p=>{ const l=p.length||4; (lengths[l]=lengths[l]||[]).push(p); });
+      for(const [len,pts] of Object.entries(lengths)){
+        const [params,rmse]=calibrate('cannon',pts,parseFloat(len));
+        applyCalibration('cannon',params,parseFloat(len));
+        out+=`【Пушка, ствол ${len} бл】\n  base_v = ${params.base_v.toFixed(3)}\n  slope = ${params.slope.toFixed(5)}\n  drag = ${params.drag.toFixed(5)}\n  RMSE = ${rmse.toFixed(2)} блоков\n\n`;
+      }
+    }
+    el('calibResults').value=out||'Нет данных.';
+    setCalibStatus('Калибровка завершена!','ok');
+  },50);
+}
+function resetCalib(){
+  state.calibPoints=[]; saveCalibPoints(); resetCalibration();
+  updateCalibList(); el('calibResults').value='Результаты калибровки появятся здесь...';
+  setCalibStatus('Калибровка сброшена до заводских значений.','warn');
+}
+
+/* ==================== STORAGE ==================== */
+function saveConfig(){
+  const data={
+    cx:el('cx').value, cy:el('cy').value, cz:el('cz').value,
+    tx:el('tx').value, ty:el('ty').value, tz:el('tz').value,
+    powder:el('powder').value, barrel:el('barrel').value,
+    mode:state.currentMode, projectile:el('projectile').value
+  };
+  localStorage.setItem(LS_CONFIG,JSON.stringify(data));
+}
+function loadConfig(){
+  try{
+    const d=JSON.parse(localStorage.getItem(LS_CONFIG));
+    if(!d) return;
+    el('cx').value=d.cx||''; el('cy').value=d.cy||''; el('cz').value=d.cz||'';
+    el('tx').value=d.tx||''; el('ty').value=d.ty||''; el('tz').value=d.tz||'';
+    el('powder').value=d.powder||''; el('barrel').value=d.barrel||'';
+    if(d.projectile) el('projectile').value=d.projectile;
+    if(d.mode){ state.currentMode=d.mode; el('btnCannon').classList.toggle('active',d.mode==='cannon'); el('btnMortar').classList.toggle('active',d.mode==='mortar'); }
+  }catch{}
+}
+function saveCalibPoints(){ localStorage.setItem(LS_CALIB_POINTS,JSON.stringify(state.calibPoints)); }
+function loadCalibPoints(){ try{ state.calibPoints=JSON.parse(localStorage.getItem(LS_CALIB_POINTS))||[]; }catch{ state.calibPoints=[]; } }
+
+/* ==================== CANVAS EVENTS ==================== */
+function bindCanvas(canvas,cam,invertY=false){
+  canvas.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const rect=canvas.getBoundingClientRect();
+    const sx=e.clientX-rect.left, sy=e.clientY-rect.top;
+    const factor=e.deltaY<0?1.15:0.87;
+    zoomAt(canvas.width,canvas.height,cam,sx,sy,factor,invertY);
+    redrawAll();
+  },{passive:false});
+  canvas.addEventListener('mousedown',e=>{ cam.dragStart={x:e.clientX,y:e.clientY}; });
+  canvas.addEventListener('mousemove',e=>{
+    if(!cam.dragStart) return;
+    cam.ox += e.clientX-cam.dragStart.x;
+    cam.oy += e.clientY-cam.dragStart.y;
+    cam.dragStart={x:e.clientX,y:e.clientY};
+    redrawAll();
+  });
+  canvas.addEventListener('mouseup',()=>cam.dragStart=null);
+  canvas.addEventListener('mouseleave',()=>cam.dragStart=null);
+}
+function resizeCanvases(){
+  ['canvasSide','canvasTop'].forEach(id=>{
+    const c=el(id), rect=c.parentElement.getBoundingClientRect();
+    c.width=rect.width; c.height=rect.height;
+  });
+  redrawAll();
+}
+window.addEventListener('resize',resizeCanvases);
+
+/* ==================== INIT ==================== */
+function init(){
+  loadConfig(); loadCalibPoints(); updateCalibList();
+  ['cx','cy','cz','tx','ty','tz','powder','barrel'].forEach(id=>{
+    el(id).addEventListener('input',()=>{ validateFloat(el(id)); controlButton(); getAngles(); });
+  });
+  bindCanvas(el('canvasSide'),state.camSide);
+  bindCanvas(el('canvasTop'),state.camTop,true);
+  handleModeSwitch(state.currentMode);
+  resizeCanvases();
+}
+init();
+</script>
+<div style="text-align:center;padding:12px;color:#555;font-size:12px;margin-top:10px;">
+  CBC Ballistic Computer — создано SoKrutoi
+</div>
+</body>
+</html>
